@@ -1,0 +1,11 @@
+__pycache__/
+traj/
+raw_data/
+/model/*
+!/model/.keep
+
+test.py
+/test_data/*
+!/test_data/.keep
+
+/npz_502/*
