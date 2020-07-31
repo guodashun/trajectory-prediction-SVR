@@ -8,7 +8,8 @@ import numpy as np
 import os
 
 frame_rate = 120
-param_grid = {'C': [1e-3, 1e-2, 1e-1, 1], 'gamma': [0.1, 0.01, 0.001, 0.0001]}
+param_grid = {'C': np.linspace(0.1,3,30), 'gamma': np.linspace(0.01,0.6,60)}
+# param_grid = {'C': [1e-3, 1e-2, 1e-1, 1, 10, 100, 1000, 10000], 'gamma': [10, 1, 0.1, 0.01, 0.001]}
 
 
 def train_pos(dms_idx):
@@ -36,5 +37,3 @@ def train_pos(dms_idx):
 if __name__ == '__main__':
     for i in range(3):
         train_pos(i)
-
-

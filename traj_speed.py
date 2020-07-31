@@ -20,9 +20,9 @@ def cubic_speed(trajs_data):
         X = []
         Y = []
         for j in range(x.shape[0]):
-            # print("x,v", [y[j], vec_f(y[j])])
-            X.append([y[j], vec_f(y[j])])
-            Y.append(acc_f(y[j]))
+            # print("x,v,a", [y[j], vec_f(x[j]), acc_f(x[j])])
+            X.append([y[j], vec_f(x[j])])
+            Y.append(acc_f(x[j]))
         # plt.figure()
         # plt.plot(X,Y)
         # break
