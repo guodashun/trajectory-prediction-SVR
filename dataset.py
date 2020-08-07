@@ -2,6 +2,9 @@ import numpy as np
 import pandas as pd
 import os
 
+data = pd.read_csv("", sep=',')
+data_txt = ""
+
 
 def load_data(data_dir, dms_idx, frame_rate):
     trajs = os.listdir(data_dir)
@@ -43,3 +46,12 @@ def load_npz(data_dir, idx, frame_rate):
     ts = np.array(ts, dtype=object)
     # print(objs.shape, ts.shape)
     return [ts, objs]
+
+
+def csv2npz(data, data_txt):
+    chip = np.loadtxt(data_txt)
+    # print(chip.shape)
+    for i in range(chip.shape[0]):
+        new_data = data[int(chip[i][0]):int(chip[i][1])]
+        np.savez("" + str(last).zfill(5) + ".npz", frame_num=new_data["Frame"],time_step=new_data["Time"],position=new_data[["X", "Y", "Z"]],quaternion=new_data[["A", "B", "C", "D"]])
+
