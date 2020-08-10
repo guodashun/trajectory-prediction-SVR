@@ -32,7 +32,7 @@ def eval_position():
         # print('after load what is pre',pos_raw_data[i][1], pos_pre_data[i])
         model = joblib.load(model_dir + model_list[i])
         speed_data = cubic_speed(pos_raw_data[i])
-        test_data = np.array(speed_data[0])[time_start:time_start+time_step] # need test
+        test_data = np.array(speed_data[0])[time_start:time_start+time_step]
         for j in range(pos_raw_data[i][0].shape[1] - time_step-time_start):
             if verbose and j == 1:
                 print("raw speed", speed_data)
@@ -42,7 +42,7 @@ def eval_position():
                 print("acc", acc)
             vel = test_data[time_step - 1][1] + acc / frame_rate
             pre_x = test_data[time_step - 1][0] + test_data[time_step - 1][1] / frame_rate \
-                    + acc / frame_rate / frame_rate / 2 # vt * 1/2 at2
+                    + acc / frame_rate / frame_rate / 2 # vt + 1/2 at^2
             if verbose and j == 1:
                 print("pre_x", pre_x)
             test_data[0:time_step - 1] = test_data[1:time_step]
@@ -56,6 +56,28 @@ def eval_position():
     ax.plot(pos_raw_data[0][1][0],pos_raw_data[1][1][0],pos_raw_data[2][1][0], color='red')
     ax.plot(pos_pre_data[0],pos_pre_data[1],pos_pre_data[2], color='green')
     plt.show()
+
+
+noise_w = np.diag([0.1, 0.1]) ** 2
+noise_v = np.diag([0.05, 0.05]) ** 2
+Q = noise_w
+R = noise_v
+model = [joblib.load(model_dir + i) for i in model_list]
+
+
+def ekf_all(x, x_pre):
+    pass
+
+
+def observation(xTrue, xd, u):
+    pass
+
+
+def motion_model(x):
+    # x.shape (3, time_step)
+    t = np.tile(np.linspace(time_start/frame_rate, time_step/frame_rate, time_step), (3,1))
+    x = np.dstack((x,t))
+    speed_data = cubic_speed(x)
 
 
 if __name__ == '__main__':
