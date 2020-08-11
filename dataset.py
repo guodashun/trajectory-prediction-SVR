@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import os
 
-data = pd.read_csv("", sep=',')
-data_txt = ""
+# data = pd.read_csv("", sep=',')
+# data_txt = ""
 
 
 def load_data(data_dir, dms_idx, frame_rate):
