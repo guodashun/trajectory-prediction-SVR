@@ -58,11 +58,12 @@ def eval_position():
     plt.show()
 
 
-noise_w = np.diag([0.1, 0.1]) ** 2
-noise_v = np.diag([0.05, 0.05]) ** 2
+noise_w = np.diag([0.1, 0.1, 0.1]) ** 2
+noise_v = np.diag([0.05, 0.05, 0.05]) ** 2
 Q = noise_w
 R = noise_v
 model = [joblib.load(model_dir + i) for i in model_list]
+DT = 1/frame_rate
 
 
 def ekf_all(x, x_pre):
@@ -70,14 +71,52 @@ def ekf_all(x, x_pre):
 
 
 def observation(xTrue, xd, u):
+    xTrue = xTrue #
+
+    z = xTrue + noise_w @ np.random.randn(3,1)
+
+
+    return xTrue, z
+
+
+def ekf_estimation(xEst, PEst, z, u):
     pass
+
+
+# def jacob_f(x):
+
+#     jF = 
+
+def jacob_h():
+    jH = np.array([
+        [1, 0, 0, 0, 0, 0],
+        [0, 1, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0],
+    ])
+    return jH
+
+def observation_model(x):
+    x = x # edit according real sense
+    return x
 
 
 def motion_model(x):
     # x.shape (3, time_step)
+    # 1. 用10帧还是用1帧 10帧
+    # 2. 用cubic还是用微分 我感觉区别不大？用cubic
     t = np.tile(np.linspace(time_start/frame_rate, time_step/frame_rate, time_step), (3,1))
     x = np.dstack((x,t))
-    speed_data = cubic_speed(x)
+    acc = [0]*3
+    speed_data = [0]*3
+    for i in range(3):
+        speed_data[i] = cubic_speed(x[:,i])
+        acc[i] = model[i].predict(speed_data[i])[time_step - 1]
+        vel = np.array(speed_data[i])[time_step - 1][1] + acc / frame_rate
+        pre_x = np.array(speed_data[i])[time_step - 1][0] + np.array(speed_data[i])[time_step - 1][1] / frame_rate \
+                + acc / frame_rate / frame_rate / 2 # vt + 1/2 at^2
+        x[i][0:time_step - 1] = x[i][1:time_step]
+        x[i][time_step] = [pre_x, vel]
+    return x
 
 
 if __name__ == '__main__':

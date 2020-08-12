@@ -54,4 +54,3 @@ def csv2npz(data, data_txt):
     for i in range(chip.shape[0]):
         new_data = data[int(chip[i][0]):int(chip[i][1])]
         np.savez("" + str(last).zfill(5) + ".npz", frame_num=new_data["Frame"],time_step=new_data["Time"],position=new_data[["X", "Y", "Z"]],quaternion=new_data[["A", "B", "C", "D"]])
-
