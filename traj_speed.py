@@ -28,3 +28,15 @@ def cubic_speed(trajs_data):
         # break
     return [X, Y]
 
+def cubic_speed_single(traj_data):
+    x = traj_data[:,1]
+    y = traj_data[:,0]
+    raw_f = UnivariateSpline(x,y, k=3)
+    vec_f = raw_f.derivative(n=1)
+    acc_f = raw_f.derivative(n=2)
+    X = []
+    Y = []
+    for j in range(traj_data.shape[0]):
+        X.append([y[j], vec_f(x[j])])
+        Y.append(acc_f(x[j]))
+    return [X, Y]

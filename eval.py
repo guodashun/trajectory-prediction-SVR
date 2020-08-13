@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d
 import os
 from dataset import load_npz
-from traj_speed import cubic_speed
+from traj_speed import cubic_speed, cubic_speed_single
 import time
+import math
 # from sklearn.svm import SVR
 
 # npz_list = os.listdir('./npz_502/')
@@ -16,13 +17,15 @@ time_start = 0
 time_step = 10
 verbose = False
 
+# ekf params
+noise_w = np.diag([0.1, 0.1, 0.1])
+noise_v = np.diag([0.05, 0.05, 0.05])
+R = noise_v ** 2
+model = [joblib.load(model_dir + i) for i in model_list]
+DT = 1/frame_rate
+
 
 def eval_position():
-    ax = plt.subplot(projection='3d')  # 创建一个三维的绘图工程
-    ax.set_title('3d_image_show')  # 设置本图名称
-    ax.set_xlabel('X')  # 设置x坐标轴
-    ax.set_ylabel('Y')  # 设置y坐标轴
-    ax.set_zlabel('Z')  # 设置z坐标轴
     pos_raw_data = [0]*3
     pos_pre_data = [0]*3
     t_start = time.time()
@@ -53,71 +56,135 @@ def eval_position():
     # print('before plot', pos_raw_data)
     if verbose:
         print("cost time:", time.time()-t_start)
-    ax.plot(pos_raw_data[0][1][0],pos_raw_data[1][1][0],pos_raw_data[2][1][0], color='red')
-    ax.plot(pos_pre_data[0],pos_pre_data[1],pos_pre_data[2], color='green')
+    show_data = [
+        [pos_raw_data[0][1][0],pos_raw_data[1][1][0],pos_raw_data[2][1][0]],
+        [pos_pre_data[0],pos_pre_data[1],pos_pre_data[2]]
+    ]
+    plt_show(show_data, num=2, color=['red', 'green'])
+
+
+def plt_show(data, num=1, color=['red']):
+    ax = plt.subplot(projection='3d')  # 创建一个三维的绘图工程
+    ax.set_title('3d_image_show')  # 设置本图名称
+    ax.set_xlabel('X')  # 设置x坐标轴
+    ax.set_ylabel('Y')  # 设置y坐标轴
+    ax.set_zlabel('Z')  # 设置z坐标轴
+    for i in range(num):
+        ax.plot(data[i][0], data[i][1], data[i][2], color=color[i])
     plt.show()
 
 
-noise_w = np.diag([0.1, 0.1, 0.1]) ** 2
-noise_v = np.diag([0.05, 0.05, 0.05]) ** 2
-Q = noise_w
-R = noise_v
-model = [joblib.load(model_dir + i) for i in model_list]
-DT = 1/frame_rate
+def ekf_all():
+    pos_raw_data = [load_npz("test_data", i, frame_rate) for i in range(3)]
+    test_data = np.array(pos_raw_data)[:, 1].reshape(3,-1)
+    xTrue = test_data[:, time_step]
+    xEst = xTrue
+    PEst = np.eye(3)
+
+    # history
+    hxEst = test_data[:, 0:time_step]
+    hz = hxEst
 
 
-def ekf_all(x, x_pre):
-    pass
+    for i in range(pos_raw_data[0][0].shape[1] - time_step - 1):
+        time = i + time_step
+        xTrue = test_data[:, time+1]
+        # print(xTrue.shape)
+        z = observation_model(xTrue)
+        xEst, PEst = ekf_estimation(hxEst[:, i:time], PEst, z) # need *time_step* frames data
+
+        # store data history
+        # print("normalize shape:", test_data.shape, hxEst.shape, xEst.shape, z.shape)
+        hxEst = np.hstack((hxEst, xEst.reshape(3,1)))
+        hz = np.hstack((hz, z.reshape(3,1)))
+    
+    show_data = [test_data, hxEst, hz]
+    plt_show(show_data, 3, ['red', 'green', 'blue'])
 
 
-def observation(xTrue, xd, u):
-    xTrue = xTrue #
+def observation(x):
 
-    z = xTrue + noise_w @ np.random.randn(3,1)
+    z = observation_model(x) + noise_w @ np.random.randn(3,1)
+
+    return z
+
+def observation_model(x):
+    H = np.array([
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+    ])
+
+    z = H @ x
+
+    return z
 
 
-    return xTrue, z
+def ekf_estimation(x_frame, PEst, z):
+    xEst = x_frame[:, -1]
+    xPred = motion_model(x_frame)
+    jF = jacob_f(xEst)
+    Phi_x = (np.eye(len(jF)) + jF) * DT
+    Q = Phi_x @ noise_w ** 2 @ Phi_x.T * DT
+    PPred = jF @ PEst @ jF.T + Q
+
+    jH = jacob_h()
+    zPred = observation_model(xPred)
+    y = z - zPred
+    S = jH @ PPred @ jH.T + R
+    # K = PPred @ jH.T @ np.linalg.inv(S)
+    K = PPred @ jH.T @ S
+    xEst = xPred + K @ y
+    PEst = (np.eye(len(xEst)) - K @ jH) @ PPred
+    return xEst, PEst
 
 
-def ekf_estimation(xEst, PEst, z, u):
-    pass
+def jacob_f(x):
+    df_dx = [0]*3
+    for i in range(3):
+        alpha = model[i].dual_coef_.flatten()
+        s_v = model[i].support_vectors_
+        gamma = model[i].get_params()['gamma']
+        # df/dx
+        df_dx[i] = sum([alpha[j] * np.linalg.norm(x[i] - s_v[j]) * math.exp(-gamma \
+                 * np.linalg.norm(x[i] - s_v[j]) ** 2) for j in range(alpha.shape[0])]) * (-2 * gamma)
+    jF = np.array([
+        [df_dx[0], 0, 0],
+        [0, df_dx[1], 0],
+        [0, 0, df_dx[2]],
+    ])
+    return jF
 
-
-# def jacob_f(x):
-
-#     jF = 
 
 def jacob_h():
     jH = np.array([
-        [1, 0, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0, 0],
-        [0, 0, 1, 0, 0, 0],
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
     ])
     return jH
-
-def observation_model(x):
-    x = x # edit according real sense
-    return x
 
 
 def motion_model(x):
     # x.shape (3, time_step)
     # 1. 用10帧还是用1帧 10帧
     # 2. 用cubic还是用微分 我感觉区别不大？用cubic
-    t = np.tile(np.linspace(time_start/frame_rate, time_step/frame_rate, time_step), (3,1))
+    t = np.tile(np.linspace(time_start/frame_rate, (time_step-1)/frame_rate, time_step), (3,1))
     x = np.dstack((x,t))
-    acc = [0]*3
-    speed_data = [0]*3
+    # print("before cubic speed", x.shape)
     for i in range(3):
-        speed_data[i] = cubic_speed(x[:,i])
-        acc[i] = model[i].predict(speed_data[i])[time_step - 1]
-        vel = np.array(speed_data[i])[time_step - 1][1] + acc / frame_rate
-        pre_x = np.array(speed_data[i])[time_step - 1][0] + np.array(speed_data[i])[time_step - 1][1] / frame_rate \
+        # print("add x", x[i])
+        speed_data = cubic_speed_single(x[i])
+        # print("speed data", speed_data)
+        acc = model[i].predict(speed_data[0])[time_step - 1]
+        vel = np.array(speed_data[0])[time_step - 1][1] + acc / frame_rate
+        pre_x = np.array(speed_data[0])[time_step - 1][0] + np.array(speed_data[0])[time_step - 1][1] / frame_rate \
                 + acc / frame_rate / frame_rate / 2 # vt + 1/2 at^2
         x[i][0:time_step - 1] = x[i][1:time_step]
-        x[i][time_step] = [pre_x, vel]
-    return x
+        x[i][time_step - 1] = [pre_x, vel]
+    return x[:, -1, 0]
 
 
 if __name__ == '__main__':
-    eval_position()
+    # eval_position()
+    ekf_all()
