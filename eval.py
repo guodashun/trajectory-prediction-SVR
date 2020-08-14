@@ -18,8 +18,8 @@ time_step = 10
 verbose = False
 
 # ekf params
-noise_w = np.diag([0.1, 0.1, 0.1])
-noise_v = np.diag([0.05, 0.05, 0.05])
+noise_w = np.diag([0.1, 0.1, 0.1]) / 10
+noise_v = np.diag([0.05, 0.05, 0.05]) * 100
 R = noise_v ** 2
 model = [joblib.load(model_dir + i) for i in model_list]
 DT = 1/frame_rate
@@ -70,7 +70,8 @@ def plt_show(data, num=1, color=['red']):
     ax.set_ylabel('Y')  # 设置y坐标轴
     ax.set_zlabel('Z')  # 设置z坐标轴
     for i in range(num):
-        ax.plot(data[i][0], data[i][1], data[i][2], color=color[i])
+        ax.scatter(data[i][0], data[i][1], data[i][2], color=color[i], s=1)
+        # ax.plot(data[i][0], data[i][1], data[i][2], color=color[i])
     plt.show()
 
 
@@ -92,23 +93,27 @@ def ekf_all():
         time = i + time_step
         xTrue = test_data[:, time+1]
         # print(xTrue.shape)
-        z = observation_model(xTrue)
+        z = observation(xTrue)
         xEst, PEst = ekf_estimation(test_data[:, i:time], xEst, PEst, z) # need *time_step* frames data
 
         # store data history
         # print("normalize shape:", test_data.shape, hxEst.shape, xEst.shape, z.shape)
-        hxEst = np.hstack((hxEst, xEst.reshape(3,1)))
+        # normalize
+        xEst_n = xEst.copy()
+        for i in range(xEst_n.shape[0]):
+            xEst_n[i] = min(xEst_n[i], 3)
+            xEst_n[i] = max(xEst_n[i], -3)
+        hxEst = np.hstack((hxEst, xEst_n.reshape(3,1)))
         hz = np.hstack((hz, z.reshape(3,1)))
     
     show_data = [test_data, hxEst, hz]
-    plt_show(show_data, 3, ['red', 'green', 'blue'])
+    plt_show(show_data, 3, ['red', 'blue', 'green'])
 
 
 def observation(x):
 
-    z = observation_model(x) + noise_w @ np.random.randn(3,1)
-
-    return z
+    z = observation_model(x) + (noise_w @ np.random.randn(3,1)).T
+    return z.flatten()
 
 def observation_model(x):
     H = np.array([
@@ -123,19 +128,16 @@ def observation_model(x):
 
 
 def ekf_estimation(x_frame, xEst, PEst, z):
-    # xEst = x_frame[:, -1]
     xPred = motion_model(x_frame)
     jF = jacob_f(xEst)
     Phi_x = (np.eye(len(jF)) + jF) * DT
     Q = Phi_x @ noise_w ** 2 @ Phi_x.T * DT
-    print(Q)
     PPred = jF @ PEst @ jF.T + Q
 
     jH = jacob_h()
     zPred = observation_model(xPred)
     y = z - zPred
     S = jH @ PPred @ jH.T + R
-    # K = PPred @ jH.T @ np.linalg.inv(S)
     K = PPred @ jH.T @ S
     xEst = xPred + K @ y
     PEst = (np.eye(len(xEst)) - K @ jH) @ PPred
@@ -191,5 +193,5 @@ def motion_model(x):
 
 
 if __name__ == '__main__':
-    # eval_position()
+    eval_position()
     ekf_all()
