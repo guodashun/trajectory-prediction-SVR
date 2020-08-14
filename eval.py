@@ -77,6 +77,8 @@ def plt_show(data, num=1, color=['red']):
 def ekf_all():
     pos_raw_data = [load_npz("test_data", i, frame_rate) for i in range(3)]
     test_data = np.array(pos_raw_data)[:, 1].reshape(3,-1)
+    # print(pos_raw_data[0])
+    # print("true acc:", cubic_speed(np.array(pos_raw_data)[0]))
     xTrue = test_data[:, time_step]
     xEst = xTrue
     PEst = np.eye(3)
@@ -91,7 +93,7 @@ def ekf_all():
         xTrue = test_data[:, time+1]
         # print(xTrue.shape)
         z = observation_model(xTrue)
-        xEst, PEst = ekf_estimation(hxEst[:, i:time], PEst, z) # need *time_step* frames data
+        xEst, PEst = ekf_estimation(test_data[:, i:time], xEst, PEst, z) # need *time_step* frames data
 
         # store data history
         # print("normalize shape:", test_data.shape, hxEst.shape, xEst.shape, z.shape)
@@ -120,12 +122,13 @@ def observation_model(x):
     return z
 
 
-def ekf_estimation(x_frame, PEst, z):
-    xEst = x_frame[:, -1]
+def ekf_estimation(x_frame, xEst, PEst, z):
+    # xEst = x_frame[:, -1]
     xPred = motion_model(x_frame)
     jF = jacob_f(xEst)
     Phi_x = (np.eye(len(jF)) + jF) * DT
     Q = Phi_x @ noise_w ** 2 @ Phi_x.T * DT
+    print(Q)
     PPred = jF @ PEst @ jF.T + Q
 
     jH = jacob_h()
@@ -153,6 +156,7 @@ def jacob_f(x):
         [0, df_dx[1], 0],
         [0, 0, df_dx[2]],
     ])
+    # print("jF:", jF)
     return jF
 
 
@@ -166,6 +170,7 @@ def jacob_h():
 
 
 def motion_model(x):
+    # 改为xv 不要每次都cubic速度
     # x.shape (3, time_step)
     # 1. 用10帧还是用1帧 10帧
     # 2. 用cubic还是用微分 我感觉区别不大？用cubic
