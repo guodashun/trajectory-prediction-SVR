@@ -1,6 +1,6 @@
 from sklearn.svm import SVR
 from sklearn.model_selection import GridSearchCV
-from dataset import load_data, load_npz
+from utils.dataset import load_data, load_npz
 from traj_speed import cubic_speed
 import joblib
 import pandas as pd

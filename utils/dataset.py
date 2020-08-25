@@ -1,19 +1,22 @@
 import numpy as np
 import pandas as pd
 import os
+import sys
+sys.path.append("..")
+from config import cfg
 
 # data = pd.read_csv("", sep=',')
 # data_txt = ""
 
 
-def load_data(data_dir, dms_idx, frame_rate):
+def load_data(data_dir, dms_idx):
     trajs = os.listdir(data_dir)
     objs = []
     ts = []
     for traj in trajs:
         raw_data = pd.read_csv("traj/" + traj)
         obj = raw_data[raw_data.columns[dms_idx + 2]].to_numpy()
-        t = np.arange(0,len(obj)*1/frame_rate,1/frame_rate).reshape(-1,1)
+        t = np.arange(0,len(obj)*1/cfg['frame_rate'],1/cfg['frame_rate']).reshape(-1,1)
         # print("traj_shape", obj.shape, t.shape)
         # print(len(obj), len(t))
         # break
@@ -24,28 +27,33 @@ def load_data(data_dir, dms_idx, frame_rate):
     return [ts, objs]
 
 
-def load_npz(data_dir, idx, frame_rate):
+def load_npz(data_dir, idx):
     trajs = os.listdir(data_dir)
     objs = []
     ts = []
     for traj in trajs:
-        raw_data = np.load(data_dir + "/" + traj)
-        obj = raw_data['position'][:, idx]
-        t = []
-        # t = np.arange(0,len(obj)*(1/frame_rate),1/frame_rate).reshape(-1,1)
-        for i in range(obj.shape[0]):
-            t.append(i/frame_rate)
-        # t = np.array(t, dtype=object).reshape(-1,1)
-        t = np.array(t, dtype=object)
-        # print("traj_shape", obj.shape, t.shape)
-        # print(len(obj), len(t))
-        # break
+        [t, obj] = load_single_npz(data_dir, traj, idx)
         objs.append(obj)
         ts.append(t)
     objs = np.array(objs, dtype=object)
     ts = np.array(ts, dtype=object)
     # print(objs.shape, ts.shape)
     return [ts, objs]
+
+
+def load_single_npz(dir, traj_name, idx):
+    raw_data = np.load(dir + "/" + traj_name)
+    obj = raw_data['position'][:, idx]
+    t = []
+    # t = np.arange(0,len(obj)*(1/cfg['frame_rate']),1/cfg['frame_rate']).reshape(-1,1)
+    for i in range(obj.shape[0]):
+        t.append(i/cfg['frame_rate'])
+    # t = np.array(t, dtype=object).reshape(-1,1)
+    t = np.array(t, dtype=object)
+    # print("traj_shape", obj.shape, t.shape)
+    # print(len(obj), len(t))
+    # break
+    return [t, obj]
 
 
 def csv2npz(data, data_txt):
