@@ -172,10 +172,7 @@ def jacob_h():
 
 
 def motion_model(x):
-    # 改为xv 不要每次都cubic速度
     # x.shape (3, time_step)
-    # 1. 用10帧还是用1帧 10帧
-    # 2. 用cubic还是用微分 我感觉区别不大？用cubic
     t = np.tile(np.linspace(time_start/frame_rate, (time_step-1)/frame_rate, time_step), (3,1))
     x = np.dstack((x,t))
     # print("before cubic speed", x.shape)
