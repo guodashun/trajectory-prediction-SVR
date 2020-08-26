@@ -1,44 +1,30 @@
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 from scipy.misc import derivative
-import matplotlib.pyplot as plt
+import sys
+sys.path.append("..")
+from config import cfg
 
-def cubic_speed(trajs_data):
-    for i in range(np.shape(trajs_data)[1]):
-        # print("traj_shape", np.shape(trajs_data))
-        x = trajs_data[0][i].flatten()
-        # x = trajs_data[0][i][...,0]
-        # print(x.shape)
-        y = trajs_data[1][i]
-        # print("before cubic", x.shape, y.shape)
-        raw_f = UnivariateSpline(x,y, k=3)
-        # print(type(raw_f))
-        vec_f = raw_f.derivative(n=1)
-        # vec_f = np.polyder(raw_f,1)
-        acc_f = raw_f.derivative(n=2)
-        # acc_f = np.polyder(raw_f,2)
-        X = []
-        Y = []
-        for j in range(x.shape[0]):
-            # print("x,v,a", [y[j], vec_f(x[j]), acc_f(x[j])])
-            X.append([y[j], vec_f(x[j])])
-            Y.append(acc_f(x[j]))
-        # plt.figure()
-        # plt.plot(X,Y)
-        # break
-    return [X, Y]
 
-def cubic_speed_single(x, t):
-    # x = traj_data[:,1]
-    # y = traj_data[:,0]
-    # y = x
-    # x = t
+def cubic_speed(x):
+    x, t = timestamp(x)
     raw_f = UnivariateSpline(t,x, k=3)
     vec_f = raw_f.derivative(n=1)
     acc_f = raw_f.derivative(n=2)
-    X_V = []
+    X = []
+    V = []
     ACC = []
-    for j in range(traj_data.shape[0]):
-        X_V.append([x[j], vec_f(t[j])])
+    for j in range(t.shape[0]):
+        X.append(x[j])
+        V.append(vec_f(t[j]))
         ACC.append(acc_f(t[j]))
-    return [X_V, ACC]
+    return np.array([X, V, ACC])
+
+
+def timestamp(x):
+    t = []
+    for i in range(x.shape[0]):
+        t.append(i/cfg['frame_rate'])
+    t = np.array(t)
+    return x, t
+

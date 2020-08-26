@@ -9,7 +9,9 @@ from config import cfg
 # data_txt = ""
 
 
+# deprecated
 def load_data(data_dir, dms_idx):
+    print("Warning: This interface is deprecated, please use \"load_npz\" instead!")
     trajs = os.listdir(data_dir)
     objs = []
     ts = []
@@ -27,33 +29,10 @@ def load_data(data_dir, dms_idx):
     return [ts, objs]
 
 
-def load_npz(data_dir, idx):
-    trajs = os.listdir(data_dir)
-    objs = []
-    ts = []
-    for traj in trajs:
-        [t, obj] = load_single_npz(data_dir, traj, idx)
-        objs.append(obj)
-        ts.append(t)
-    objs = np.array(objs, dtype=object)
-    ts = np.array(ts, dtype=object)
-    # print(objs.shape, ts.shape)
-    return [ts, objs]
-
-
-def load_single_npz(dir, traj_name, idx):
+def load_npz(dir, traj_name, idx):
     raw_data = np.load(dir + "/" + traj_name)
     obj = raw_data['position'][:, idx]
-    t = []
-    # t = np.arange(0,len(obj)*(1/cfg['frame_rate']),1/cfg['frame_rate']).reshape(-1,1)
-    for i in range(obj.shape[0]):
-        t.append(i/cfg['frame_rate'])
-    # t = np.array(t, dtype=object).reshape(-1,1)
-    t = np.array(t, dtype=object)
-    # print("traj_shape", obj.shape, t.shape)
-    # print(len(obj), len(t))
-    # break
-    return [t, obj]
+    return obj
 
 
 def csv2npz(data, data_txt):
