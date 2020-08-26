@@ -27,4 +27,3 @@ def timestamp(x):
         t.append(i/cfg['frame_rate'])
     t = np.array(t)
     return x, t
-
