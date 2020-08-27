@@ -36,34 +36,57 @@ def ekf_all(traj_name):
 
     # history
     hxEst = test_data[:, 0:T]
-    hz = hxEst
+    hxEst_plt = hxEst
+
+    # ekf time normalize
     pre_time = pos_raw_data[0].shape[0] - T - 1
     ekf_time = cfg['ekf_time'] if pre_time >= cfg['ekf_time'] else pre_time
     
-    for i in range(pre_time):
+    for i in range(ekf_time):
         time = i + T
         xTrue = test_data[:, time+1]
         z = observation(xTrue)
         xEst, PEst = ekf_estimation(test_data[:, i:time], vel, xEst, PEst, z) # need *T* frames data
         # xEst, PEst = ekf_estimation(hxEst[:, i:time], xEst, PEst, z) # need *T* frames data
-        # print("Frame err is %.2f%%"%(err_cal(xTrue, xEst)))
+        print("During EKF frame err is %.2f%%"%(err_cal(xTrue, xEst)))
         
+        # store data history
+        hxEst = np.hstack((hxEst, xEst.reshape(3,1)))
+        # normalize
+        xEst_n = xEst.copy()
+        for i in range(xEst_n.shape[0]):
+            xEst_n[i] = min(xEst_n[i], 3)
+            xEst_n[i] = max(xEst_n[i], -3)
+        hxEst_plt = np.hstack((hxEst_plt, xEst_n.reshape(3,1)))
+        # hxEst = np.hstack((hxEst, xEst.reshape(3,1)))
+    
+    x_data = hxEst[:, ekf_time:ekf_time+T]
+    for j in range(pre_time - ekf_time):
+        time = j + ekf_time + T
+        for i in range(3):
+            x_v = np.array([[x_data[i][idx], vel[i][idx]] for idx in range(T)])
+            acc = model[i].predict(x_v)[T - 1]
+            pre_x, pre_v = intergral_x(x_data[i][T-1], vel[i][T-1], acc, 1/F)
+            x_data[i][0:T - 1] = x_data[i][1:T]
+            vel[i][0:T - 1] = vel[i][1:T]
+            x_data[i][T-1], vel[i][T-1] = pre_x, pre_v
+            xEst[i] = pre_x
+            
+        print("After EKF frame err is %.2f%%"%(err_cal(test_data[:, time], xEst)))
         # store data history
         # normalize
         xEst_n = xEst.copy()
         for i in range(xEst_n.shape[0]):
             xEst_n[i] = min(xEst_n[i], 3)
             xEst_n[i] = max(xEst_n[i], -3)
-        hxEst = np.hstack((hxEst, xEst_n.reshape(3,1)))
-        # hxEst = np.hstack((hxEst, xEst.reshape(3,1)))
-        hz = np.hstack((hz, z.reshape(3,1)))
+        hxEst_plt = np.hstack((hxEst_plt, xEst_n.reshape(3,1)))
     
-    err = err_cal(xTrue, xEst)
-    print("Final err is %.2f%%"%(err))
+    err = err_cal(test_data[:, -1], xEst)
+    print("EKF time is", ekf_time, "Final err is %.2f%%"%(err))
 
     if show:
-        show_data = [test_data, hxEst, hz]
-        plt_show(show_data, 3, ['red', 'blue', 'green'])
+        show_data = [test_data, hxEst_plt]
+        plt_show(show_data, 2, ['red', 'blue'])
 
 
 def observation(x):

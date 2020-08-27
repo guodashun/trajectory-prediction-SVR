@@ -32,7 +32,8 @@ def eval_position():
         for i in range(3): # x,y,z
             pos_raw_data[i] = load_npz("test_data",traj, i)
             pos_pre_data[i] = pos_raw_data[i].copy()
-            speed_data = cubic_speed(pos_raw_data[i])
+            # speed_data = cubic_speed(pos_raw_data[i])
+            speed_data = cubic_speed(pos_raw_data[i][B:B+T])
             test_data = np.array([[speed_data[0][idx], speed_data[1][idx]] for idx in range(speed_data[0].shape[0])])[B:B+T]
             model = joblib.load(model_dir + '/' + model_name + str(i) + ".pkl")
 
@@ -46,14 +47,16 @@ def eval_position():
         if verbose:
             print("cost time:", time.time()-t_start)
         
-        if show:
-            plt_show([pos_raw_data, pos_pre_data], num=2, color=['red', 'green'])
-       
         if record_err:
             # pos_raw_data[0][1][0][-1], pos_pre_data[0][-1]
             err = err_cal(np.array(pos_raw_data)[:,-1],
                         np.array(pos_pre_data)[:,-1])
             print("The error is %.2f%%"%(err))
+        
+        if show:
+            plt_show([pos_raw_data, pos_pre_data], num=2, color=['red', 'green'])
+       
+
 
 
 if __name__ == '__main__':
