@@ -39,7 +39,7 @@ def ekf_all(traj_name):
     hxEst_plt = hxEst
 
     # ekf time normalize
-    pre_time = pos_raw_data[0].shape[0] - T - 1
+    pre_time = pos_raw_data[0].shape[0] - T
     ekf_time = cfg['ekf_time'] if pre_time >= cfg['ekf_time'] else pre_time
     
     for i in range(ekf_time):
@@ -49,7 +49,6 @@ def ekf_all(traj_name):
         xEst, PEst = ekf_estimation(test_data[:, i:time], vel, xEst, PEst, z) # need *T* frames data
         # xEst, PEst = ekf_estimation(hxEst[:, i:time], xEst, PEst, z) # need *T* frames data
         print("During EKF frame err is %.2f%%"%(err_cal(xTrue, xEst)))
-        
         # store data history
         hxEst = np.hstack((hxEst, xEst.reshape(3,1)))
         # normalize
