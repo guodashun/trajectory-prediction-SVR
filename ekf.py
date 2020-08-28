@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import os
+import time
 import joblib
 from config import cfg
 from utils.dataset import load_npz
@@ -16,6 +17,7 @@ model_list = os.listdir(model_dir)
 model_list.remove(".keep")
 test_list.remove(".keep")
 show = True
+verbose = False
 
 # ekf params
 # noise_w = np.diag([0.1, 0.1, 0.1]) / 1000
@@ -40,15 +42,18 @@ def ekf_all(traj_name):
 
     # ekf time normalize
     pre_time = pos_raw_data[0].shape[0] - T
-    ekf_time = cfg['ekf_time'] if pre_time >= cfg['ekf_time'] else pre_time
-    
+    ekf_time = cfg['ekf_time'] if pre_time >= cfg['ekf_time'] else (pre_time-1)
+    ekf_cost_t = time.time()
     for i in range(ekf_time):
-        time = i + T
-        xTrue = test_data[:, time+1]
+        cost_t = time.time()
+        frame = i + T
+        xTrue = test_data[:, frame+1]
         z = observation(xTrue)
-        xEst, PEst = ekf_estimation(test_data[:, i:time], vel, xEst, PEst, z) # need *T* frames data
-        # xEst, PEst = ekf_estimation(hxEst[:, i:time], xEst, PEst, z) # need *T* frames data
-        print("During EKF frame err is %.2f%%"%(err_cal(xTrue, xEst)))
+        xEst, PEst = ekf_estimation(test_data[:, i:frame], vel, xEst, PEst, z) # need *T* frames data
+        # xEst, PEst = ekf_estimation(hxEst[:, i:frame], xEst, PEst, z) # need *T* frames data
+        if verbose:
+            print("During EKF frame err is %.2f%%."%(err_cal(xTrue, xEst)), "cost time: %.3fs"%(time.time()-cost_t))
+        
         # store data history
         hxEst = np.hstack((hxEst, xEst.reshape(3,1)))
         # normalize
@@ -59,9 +64,13 @@ def ekf_all(traj_name):
         hxEst_plt = np.hstack((hxEst_plt, xEst_n.reshape(3,1)))
         # hxEst = np.hstack((hxEst, xEst.reshape(3,1)))
     
+    if verbose:
+        print("EKF cost time: %.3fs"%(time.time()-ekf_cost_t))
+
     x_data = hxEst[:, ekf_time:ekf_time+T]
-    for j in range(pre_time - ekf_time):
-        time = j + ekf_time + T
+    pre_cost_t = time.time()
+    for j in range(pre_time - ekf_time - 1):
+        frame = j + ekf_time + T + 1
         for i in range(3):
             x_v = np.array([[x_data[i][idx], vel[i][idx]] for idx in range(T)])
             acc = model[i].predict(x_v)[T - 1]
@@ -70,8 +79,9 @@ def ekf_all(traj_name):
             vel[i][0:T - 1] = vel[i][1:T]
             x_data[i][T-1], vel[i][T-1] = pre_x, pre_v
             xEst[i] = pre_x
-            
-        print("After EKF frame err is %.2f%%"%(err_cal(test_data[:, time], xEst)))
+
+        if verbose:    
+            print("After EKF frame err is %.2f%%"%(err_cal(test_data[:, frame], xEst)))
         # store data history
         # normalize
         xEst_n = xEst.copy()
@@ -80,6 +90,8 @@ def ekf_all(traj_name):
             xEst_n[i] = max(xEst_n[i], -3)
         hxEst_plt = np.hstack((hxEst_plt, xEst_n.reshape(3,1)))
     
+    if verbose:
+        print("Prediction cost time: %.3fs"%(time.time()-pre_cost_t))
     err = err_cal(test_data[:, -1], xEst)
     print("EKF time is", ekf_time, "Final err is %.2f%%"%(err))
 
@@ -124,6 +136,7 @@ def ekf_estimation(x_frame, vel, xEst, PEst, z):
 
 def jacob_f(x):
     df_dx = [0]*3
+    t = time.time()
     for i in range(3):
         alpha = model[i].dual_coef_.flatten()
         s_v = model[i].support_vectors_
@@ -131,6 +144,7 @@ def jacob_f(x):
         # df/dx
         df_dx[i] = sum([alpha[j] * np.linalg.norm(x[i] - s_v[j]) * math.exp(-gamma \
                  * np.linalg.norm(x[i] - s_v[j]) ** 2) for j in range(alpha.shape[0])]) * (-2 * gamma)
+
     jF = np.array([
         [df_dx[0], 0, 0],
         [0, df_dx[1], 0],
