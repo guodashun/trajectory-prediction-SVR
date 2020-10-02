@@ -8,4 +8,9 @@ test.py
 /test_data/*
 !/test_data/.keep
 
-/npz_502/*
+/npz*/*
+
+.vscode/
+*.log
+*.out
+

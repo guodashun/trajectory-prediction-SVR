@@ -5,7 +5,7 @@ import time
 import joblib
 from config import cfg
 from utils.dataset import load_npz
-from utils.utils import cubic_speed, intergral_x, err_cal, plt_show
+from utils.utils import cubic_speed, intergral_x, err_cal, err_norm, plt_show
 
 F = cfg['frame_rate']
 T = cfg['init_time']
@@ -16,7 +16,7 @@ test_list = os.listdir(test_dir)
 model_list = os.listdir(model_dir)
 model_list.remove(".keep")
 test_list.remove(".keep")
-show = True
+show = False
 verbose = False
 
 # ekf params
@@ -52,7 +52,7 @@ def ekf_all(traj_name):
         xEst, PEst = ekf_estimation(test_data[:, i:frame], vel, xEst, PEst, z) # need *T* frames data
         # xEst, PEst = ekf_estimation(hxEst[:, i:frame], xEst, PEst, z) # need *T* frames data
         if verbose:
-            print("During EKF frame err is %.2f%%."%(err_cal(xTrue, xEst)), "cost time: %.3fs"%(time.time()-cost_t))
+            print("During EKF frame err is %.4f."%(err_norm(xTrue, xEst)), "cost time: %.3fs"%(time.time()-cost_t))
         
         # store data history
         hxEst = np.hstack((hxEst, xEst.reshape(3,1)))
@@ -81,7 +81,7 @@ def ekf_all(traj_name):
             xEst[i] = pre_x
 
         if verbose:    
-            print("After EKF frame err is %.2f%%"%(err_cal(test_data[:, frame], xEst)))
+            print("After EKF frame err is %.4f"%(err_norm(test_data[:, frame], xEst)))
         # store data history
         # normalize
         xEst_n = xEst.copy()
@@ -92,12 +92,14 @@ def ekf_all(traj_name):
     
     if verbose:
         print("Prediction cost time: %.3fs"%(time.time()-pre_cost_t))
-    err = err_cal(test_data[:, -1], xEst)
-    print("EKF time is", ekf_time, "Final err is %.2f%%"%(err))
+    err = err_norm(test_data[:, -1], xEst)
+    print("EKF time is", ekf_time, "Final err is %.4f"%(err))
 
     if show:
         show_data = [test_data, hxEst_plt]
         plt_show(show_data, 2, ['red', 'blue'])
+
+    return err
 
 
 def observation(x):
@@ -136,14 +138,15 @@ def ekf_estimation(x_frame, vel, xEst, PEst, z):
 
 def jacob_f(x):
     df_dx = [0]*3
-    t = time.time()
     for i in range(3):
         alpha = model[i].dual_coef_.flatten()
         s_v = model[i].support_vectors_
         gamma = model[i].get_params()['gamma']
         # df/dx
         df_dx[i] = sum([alpha[j] * np.linalg.norm(x[i] - s_v[j]) * math.exp(-gamma \
-                 * np.linalg.norm(x[i] - s_v[j]) ** 2) for j in range(alpha.shape[0])]) * (-2 * gamma)
+                 * np.linalg.norm(x[i] - s_v[j])**2) for j in range(alpha.shape[0])]) * (-2 * gamma)
+
+
 
     jF = np.array([
         [df_dx[0], 0, 0],
@@ -183,6 +186,9 @@ def motion_model(x, v):
 
 
 if __name__ == '__main__':
+    err = 0.0
     for traj in test_list:
         print("The traj now is", traj)
-        ekf_all(traj)
+        err = err + ekf_all(traj)
+    err = err / len(test_list)
+    print("The total err is", err)

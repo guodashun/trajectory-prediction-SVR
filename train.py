@@ -11,7 +11,7 @@ from multiprocessing import cpu_count
 param_grid = {'C': np.linspace(0.1,3,30), 'gamma': np.linspace(0.01,0.6,60)}
 # param_grid = {'C': [1e-3, 1e-2, 1e-1, 1, 10, 100, 1000, 10000], 'gamma': [10, 1, 0.1, 0.01, 0.001]}
 
-traj_dir = 'npz_502'
+traj_dir = 'npz_aug2'
 traj_list = os.listdir(traj_dir)
 train_threads = cpu_count()
 save_path = 'model'
@@ -24,7 +24,7 @@ def train_pos(dms_idx):
     X = [] # zeta = {[x, v]}
     y = [] # Y = {a}
     for traj in traj_list:
-        traj_data = load_npz('npz_502', traj, dms_idx)
+        traj_data = load_npz(traj_dir, traj, dms_idx)
         xva = cubic_speed(traj_data)
         for i in range(xva.shape[1]):
             X.append([xva[0, i], xva[1, i]])

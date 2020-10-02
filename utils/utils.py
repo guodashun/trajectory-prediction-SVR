@@ -45,6 +45,10 @@ def err_cal(xTrue, xPre):
     return err_rate / 3.0 * 100.0
 
 
+def err_norm(xTrue, xPre):
+    return np.linalg.norm(xTrue - xPre)
+
+
 def plt_show(data, num=1, color=['red']):
     ax = plt.subplot(projection='3d')  # 创建一个三维的绘图工程
     ax.set_title('3d_image_show')  # 设置本图名称
