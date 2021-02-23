@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 # npz_list = os.listdir('./npz_502/')
 model_dir = 'model'
-object_name = "Bottle_shao"
+object_name = "Green"
 test_dir = f"npz_aug_scp/{object_name}/test_q"
 test_list = os.listdir(test_dir)
 if '.keep' in test_list:
@@ -87,10 +87,8 @@ if __name__ == '__main__':
         while(pos_err > 0.01 and T < traj_long-1):
             T += 1
             pos_err, _, traj_long = eval_position(traj, T)
-            print("look look", pos_err, T, traj_long)
         ach_pre_t.append((traj_long - T)/120.)
     ach_pre_t = np.array(ach_pre_t)
-    print("rang wo kan kan zhe ge t", ach_pre_t)
 
     res.write(f"{object_name}_t:{ach_pre_t.max()},{ach_pre_t.min()},{ach_pre_t.mean()}\n")
     res.close()
