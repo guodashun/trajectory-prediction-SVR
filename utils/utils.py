@@ -7,20 +7,28 @@ import sys
 sys.path.append("..")
 from config import cfg
 
-
-def cubic_speed(x):
-    x, t = timestamp(x)
-    raw_f = UnivariateSpline(t,x, k=3)
-    vec_f = raw_f.derivative(n=1)
-    acc_f = raw_f.derivative(n=2)
-    X = []
-    V = []
-    ACC = []
-    for j in range(t.shape[0]):
-        X.append(x[j])
-        V.append(vec_f(t[j]))
-        ACC.append(acc_f(t[j]))
-    return np.array([X, V, ACC])
+# cubic spine for one traj
+# return ((x,v,a)，3，traj.size())
+def cubic_speed(raw_data):
+    Xs = []
+    Vs = []
+    ACCs = []
+    for i in range(3):
+        x, t = timestamp(raw_data[:,i])
+        raw_f = UnivariateSpline(t,x, k=3)
+        vec_f = raw_f.derivative(n=1)
+        acc_f = raw_f.derivative(n=2)
+        X = []
+        V = []
+        ACC = []
+        for j in range(t.shape[0]):
+            X.append(x[j])
+            V.append(vec_f(t[j]))
+            ACC.append(acc_f(t[j]))
+        Xs.append(X)
+        Vs.append(V)
+        ACCs.append(ACC)
+    return np.array([Xs, Vs, ACCs])
 
 
 def timestamp(x):
@@ -56,7 +64,7 @@ def plt_show(data, num=1, color=['red']):
     ax.set_ylabel('Y')  # 设置y坐标轴
     ax.set_zlabel('Z')  # 设置z坐标轴
     for i in range(num):
-        ax.scatter(data[i][0], data[i][1], data[i][2], color=color[i], s=1)
+        ax.scatter(data[i][:, 0], data[i][:, 1], data[i][:, 2], color=color[i], s=1)
         # ax.plot(data[i][0], data[i][1], data[i][2], color=color[i])
     plt.show()
 

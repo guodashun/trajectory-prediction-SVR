@@ -29,9 +29,9 @@ def load_data(data_dir, dms_idx):
     return [ts, objs]
 
 
-def load_npz(dir, traj_name, idx):
+def load_npz(dir, traj_name):
     raw_data = np.load(dir + "/" + traj_name)
-    obj = raw_data['position'][:, idx]
+    obj = raw_data['position']
     return obj
 
 
